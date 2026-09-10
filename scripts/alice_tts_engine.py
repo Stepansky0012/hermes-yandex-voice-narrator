@@ -618,15 +618,32 @@ async def synthesize_text_to_file(raw_text: str, output_file: str, voice: str = 
     
     temp_files = []
     
-    async with websockets.connect(UNIPROXY_URL, ping_interval=10, ping_timeout=15) as ws:
-        for idx, (chunk_text, emotion) in enumerate(chunks, 1):
-            print(f"  [+] Синтез чанка {idx}/{len(chunks)} (голос: '{voice}', эмоция: '{emotion}', длина: {len(chunk_text)} симв.)...")
-            raw_audio = await synthesize_chunk(ws, chunk_text, voice=voice, emotion=emotion, speed=speed)
-            
-            tmp_f = tempfile.NamedTemporaryFile(suffix=f"_chunk_{idx}.ogg", delete=False)
-            tmp_f.write(raw_audio)
-            tmp_f.close()
-            temp_files.append(tmp_f.name)
+    for idx, (chunk_text, emotion) in enumerate(chunks, 1):
+        print(f"  [+] Синтез чанка {idx}/{len(chunks)} (голос: '{voice}', эмоция: '{emotion}', длина: {len(chunk_text)} симв.)...")
+        raw_audio = None
+        last_error = None
+        for attempt in range(1, 5):
+            try:
+                # Uniproxy can close long-lived sockets during long narrations.
+                # Reconnect per chunk and retry without discarding completed work.
+                async with websockets.connect(UNIPROXY_URL, ping_interval=10, ping_timeout=15) as ws:
+                    raw_audio = await synthesize_chunk(
+                        ws, chunk_text, voice=voice, emotion=emotion, speed=speed
+                    )
+                break
+            except Exception as exc:
+                last_error = exc
+                if attempt < 4:
+                    await asyncio.sleep(attempt * 1.5)
+        if raw_audio is None:
+            raise RuntimeError(
+                f"Не удалось синтезировать чанк {idx}/{len(chunks)} после 4 попыток"
+            ) from last_error
+
+        tmp_f = tempfile.NamedTemporaryFile(suffix=f"_chunk_{idx}.ogg", delete=False)
+        tmp_f.write(raw_audio)
+        tmp_f.close()
+        temp_files.append(tmp_f.name)
             
     # Если чанк один — проверяем и копируем
     if len(temp_files) == 1:
