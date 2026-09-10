@@ -84,10 +84,18 @@ python3 ~/.hermes/skills/research/alice-voice-narrator/scripts/alice_tts_engine.
 
 ---
 
-## 4. Проверка качества и валидация
+## 4. Проверка качества и доставка в Telegram
 
 Перед отправкой аудио в Telegram валидируйте параметры через `ffprobe`:
 ```bash
 ffprobe -v error -show_entries format=duration,size:stream=codec_name,sample_rate,channels -of default=noprint_wrappers=1 output.ogg
 ```
 Ожидаемый результат: `codec_name=opus`, `sample_rate=48000`, `channels=1`.
+
+### Доставка в Telegram как нативного голосового сообщения (Voice Bubble):
+Чтобы Telegram отправил аудиофайл как нативное голосовое сообщение (круглый войс с визуальной звуковой волной), в финальном ответе агента обязательно используйте директиву `[[audio_as_voice]]`:
+
+```markdown
+[[audio_as_voice]]
+MEDIA:/home/ubuntu/.hermes/audio_cache/everything_as_code.ogg
+```
