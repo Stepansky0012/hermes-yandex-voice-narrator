@@ -645,9 +645,10 @@ async def synthesize_text_to_file(raw_text: str, output_file: str, voice: str = 
             "-filter_complex", filter_complex,
             "-map", "[out]",
             "-c:a", "libopus",
-            "-b:a", "64k",
+            "-b:a", "48k",
             "-ar", "48000",
             "-ac", "1",
+            "-application", "voip",
             output_file
         ])
         subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
